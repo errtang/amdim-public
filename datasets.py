@@ -16,14 +16,16 @@ class Dataset(Enum):
     STL10 = 3
     IN128 = 4
     PLACES205 = 5
+    YFCC100M = 6
 
 
 def get_encoder_size(dataset):
+    # input image size assume square dimensions
     if dataset in [Dataset.C10, Dataset.C100]:
         return 32
     if dataset == Dataset.STL10:
-        return 64
-    if dataset in [Dataset.IN128, Dataset.PLACES205]:
+        return 128
+    if dataset in [Dataset.IN128, Dataset.PLACES205, Dataset.YFCC100M]:
         return 128
     raise RuntimeError("Couldn't get encoder size, unknown dataset: {}".format(dataset))
 
@@ -134,12 +136,12 @@ class TransformsSTL10:
             transforms.ColorJitter(0.4, 0.4, 0.4, 0.2)], p=0.8)
         rnd_gray = transforms.RandomGrayscale(p=0.25)
         rand_crop = \
-            transforms.RandomResizedCrop(64, scale=(0.3, 1.0), ratio=(0.7, 1.4),
+            transforms.RandomResizedCrop(128, scale=(0.3, 1.0), ratio=(0.7, 1.4),
                                          interpolation=INTERP)
 
         self.test_transform = transforms.Compose([
             transforms.Resize(70, interpolation=INTERP),
-            transforms.CenterCrop(64),
+            transforms.CenterCrop(128),
             transforms.ToTensor(),
             normalize
         ])
@@ -249,6 +251,13 @@ def build_dataset(dataset, batch_size, input_dir=None, labeled_only=False):
         test_transform = train_transform.test_transform
         train_dataset = datasets.ImageFolder(train_dir, train_transform)
         test_dataset = datasets.ImageFolder(val_dir, test_transform)
+    elif dataset == Dataset.YFCC100M:
+        # TODO: create seperate build_data that doesn't require labels (dissociate proxy task and task training)
+        num_classes = 10
+        train_transform = TransformsImageNet128()
+        test_transform = train_transform.test_transform
+        train_dataset = datasets.ImageFolder(train_dir, train_transform)
+        test_dataset = datasets.ImageFolder(val_dir, test_transform)
 
     # build pytorch dataloaders for the datasets
     train_loader = \
@@ -279,6 +288,20 @@ def _get_directories(dataset, input_dir):
     elif dataset == Dataset.PLACES205:
         train_dir = os.path.join(input_dir, 'places205_256_train/')
         val_dir = os.path.join(input_dir, 'places205_256_val/')
+    elif dataset == Dataset.YFCC100M:
+        # TODO: create appropriate img directories
+        train_dir = input_dir
+        val_dir = input_dir
     else:
         raise 'Data directories for dataset ' + dataset + ' are not defined'
     return train_dir, val_dir
+
+# Run: 1
+# 119: loss: 3.805, train_acc_glb_mlp: 0.306, train_acc_glb_lin: 0.294, test_accuracy_mlp_classifier: 0.425, test_accuracy_linear_classifier: 0.386
+
+# Run: 2
+# 115: loss: 3.848, train_acc_glb_mlp: 0.311, train_acc_glb_lin: 0.269, test_accuracy_mlp_classifier: 0.418, test_accuracy_linear_classifier: 0.345
+# 116: loss: 3.857, train_acc_glb_mlp: 0.310, train_acc_glb_lin: 0.275, test_accuracy_mlp_classifier: 0.418, test_accuracy_linear_classifier: 0.345
+# 117: loss: 3.878, train_acc_glb_mlp: 0.287, train_acc_glb_lin: 0.262, test_accuracy_mlp_classifier: 0.419, test_accuracy_linear_classifier: 0.344
+# 118: loss: 3.853, train_acc_glb_mlp: 0.309, train_acc_glb_lin: 0.272, test_accuracy_mlp_classifier: 0.417, test_accuracy_linear_classifier: 0.345
+# 119: loss: 3.858, train_acc_glb_mlp: 0.300, train_acc_glb_lin: 0.278, test_accuracy_mlp_classifier: 0.417, test_accuracy_linear_classifier: 0.345

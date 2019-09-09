@@ -196,10 +196,12 @@ class Model(nn.Module):
         self.g2l_loss = LossMultiNCE(tclip=tclip)
 
         # configure modules for classification with self-supervised features
+        # TODO: remove class modules from base Model (for self-supervised part)
         self.evaluator = Evaluator(n_classes, ftr_1=rkhs_1)
 
         # gather lists of self-supervised and classifier modules
         self.info_modules = [self.encoder.module, self.g2l_loss]
+        # TODO: remove class modules from base Model (for self-supervised part)
         self.class_modules = [self.evaluator]
 
     def init_weights(self, init_scale=1.):
